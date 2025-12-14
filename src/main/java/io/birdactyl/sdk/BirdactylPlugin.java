@@ -13,7 +13,7 @@ import java.util.function.Function;
 public abstract class BirdactylPlugin extends PluginServiceGrpc.PluginServiceImplBase {
     private static final Gson gson = new Gson();
     private final String id;
-    private final String name;
+    private String name;
     private final String version;
     private final Map<String, Function<Event, EventResult>> eventHandlers = new ConcurrentHashMap<>();
     private final Map<String, Function<Request, Response>> routeHandlers = new ConcurrentHashMap<>();
@@ -27,26 +27,6 @@ public abstract class BirdactylPlugin extends PluginServiceGrpc.PluginServiceImp
     private File dataDir;
     private boolean useDataDir = false;
     private Runnable onStartCallback;
-    private UIConfig uiConfig;
-
-    public static class UIConfig {
-        public String icon;
-        public SidebarConfig sidebar;
-        public List<PageConfig> pages = new ArrayList<>();
-    }
-
-    public static class SidebarConfig {
-        public String label, icon, section;
-        public int order;
-        public SidebarConfig(String label, String icon, String section, int order) {
-            this.label = label; this.icon = icon; this.section = section; this.order = order;
-        }
-    }
-
-    public static class PageConfig {
-        public String path, label;
-        public PageConfig(String path, String label) { this.path = path; this.label = label; }
-    }
 
     private static class MixinRegistration {
         final String target;
@@ -63,17 +43,13 @@ public abstract class BirdactylPlugin extends PluginServiceGrpc.PluginServiceImp
         this.version = version;
     }
 
-    public BirdactylPlugin setName(String name) {
+    public BirdactylPlugin setName(String n) {
+        this.name = n;
         return this;
     }
 
     public BirdactylPlugin useDataDir() {
         this.useDataDir = true;
-        return this;
-    }
-
-    public BirdactylPlugin ui(UIConfig config) {
-        this.uiConfig = config;
         return this;
     }
 
@@ -201,23 +177,6 @@ public abstract class BirdactylPlugin extends PluginServiceGrpc.PluginServiceImp
                 .addAllRoutes(routes)
                 .addAllSchedules(schedules)
                 .addAllMixins(mixins);
-
-        if (uiConfig != null) {
-            PluginUIInfo.Builder uiBuilder = PluginUIInfo.newBuilder();
-            if (uiConfig.icon != null) uiBuilder.setIcon(uiConfig.icon);
-            if (uiConfig.sidebar != null) {
-                uiBuilder.setSidebar(PluginSidebarInfo.newBuilder()
-                        .setLabel(uiConfig.sidebar.label)
-                        .setIcon(uiConfig.sidebar.icon)
-                        .setSection(uiConfig.sidebar.section != null ? uiConfig.sidebar.section : "platform")
-                        .setOrder(uiConfig.sidebar.order)
-                        .build());
-            }
-            for (PageConfig page : uiConfig.pages) {
-                uiBuilder.addPages(PluginPageInfo.newBuilder().setPath(page.path).setLabel(page.label).build());
-            }
-            builder.setUi(uiBuilder.build());
-        }
 
         response.onNext(builder.build());
         response.onCompleted();
