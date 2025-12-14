@@ -374,6 +374,54 @@ public class PanelAPI {
         stub.broadcastEvent(BroadcastEventRequest.newBuilder().setEventType(eventType).putAllData(data).build());
     }
 
+    public HTTPResponse http(String method, String url, Map<String, String> headers, byte[] body) {
+        PluginHTTPRequest.Builder req = PluginHTTPRequest.newBuilder().setMethod(method).setUrl(url);
+        if (headers != null) req.putAllHeaders(headers);
+        if (body != null) req.setBody(ByteString.copyFrom(body));
+        PluginHTTPResponse resp = stub.hTTPRequest(req.build());
+        return new HTTPResponse(resp);
+    }
+
+    public HTTPResponse httpGet(String url, Map<String, String> headers) {
+        return http("GET", url, headers, null);
+    }
+
+    public HTTPResponse httpPost(String url, Map<String, String> headers, byte[] body) {
+        return http("POST", url, headers, body);
+    }
+
+    public HTTPResponse httpPut(String url, Map<String, String> headers, byte[] body) {
+        return http("PUT", url, headers, body);
+    }
+
+    public HTTPResponse httpDelete(String url, Map<String, String> headers) {
+        return http("DELETE", url, headers, null);
+    }
+
+    public byte[] callPlugin(String pluginId, String method, byte[] data) throws Exception {
+        CallPluginRequest.Builder req = CallPluginRequest.newBuilder().setPluginId(pluginId).setMethod(method);
+        if (data != null) req.setData(ByteString.copyFrom(data));
+        CallPluginResponse resp = stub.callPlugin(req.build());
+        if (!resp.getError().isEmpty()) throw new Exception(resp.getError());
+        return resp.getData().toByteArray();
+    }
+
+    public static class HTTPResponse {
+        public final int status;
+        public final Map<String, String> headers;
+        public final byte[] body;
+        public final String error;
+
+        HTTPResponse(PluginHTTPResponse r) {
+            this.status = r.getStatus();
+            this.headers = r.getHeadersMap();
+            this.body = r.getBody().toByteArray();
+            this.error = r.getError();
+        }
+
+        public String bodyAsString() { return new String(body); }
+    }
+
     public static class Server {
         public final String id, name, ownerId, nodeId, status, packageId, primaryAllocation;
         public final boolean suspended;
