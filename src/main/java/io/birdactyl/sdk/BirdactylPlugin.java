@@ -8,6 +8,8 @@ import java.io.File;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ForkJoinPool;
 import java.util.function.Function;
 
 public abstract class BirdactylPlugin extends PluginServiceGrpc.PluginServiceImplBase {
@@ -24,6 +26,9 @@ public abstract class BirdactylPlugin extends PluginServiceGrpc.PluginServiceImp
     private final List<MixinInfo> mixins = new ArrayList<>();
     private final CountDownLatch readyLatch = new CountDownLatch(1);
     private PanelAPI api;
+    private PanelAPIAsync asyncApi;
+    private PanelServiceGrpc.PanelServiceStub asyncStub;
+    private Executor asyncExecutor = ForkJoinPool.commonPool();
     private File dataDir;
     private boolean useDataDir = false;
     private Runnable onStartCallback;
@@ -50,6 +55,11 @@ public abstract class BirdactylPlugin extends PluginServiceGrpc.PluginServiceImp
 
     public BirdactylPlugin useDataDir() {
         this.useDataDir = true;
+        return this;
+    }
+
+    public BirdactylPlugin asyncExecutor(Executor executor) {
+        this.asyncExecutor = executor;
         return this;
     }
 
@@ -105,6 +115,20 @@ public abstract class BirdactylPlugin extends PluginServiceGrpc.PluginServiceImp
         return api;
     }
 
+    public PanelAPIAsync async() {
+        return asyncApi;
+    }
+
+    public ConsoleStream streamConsole(ConsoleStream.Builder builder) {
+        ConsoleStream stream = builder.build();
+        asyncStub.streamConsole(builder.buildRequest(), stream.createObserver());
+        return stream;
+    }
+
+    public ConsoleStream.Builder console(String serverId) {
+        return new ConsoleStream.Builder(serverId);
+    }
+
     public File dataDir() {
         return dataDir;
     }
@@ -149,6 +173,8 @@ public abstract class BirdactylPlugin extends PluginServiceGrpc.PluginServiceImp
                 .build();
 
         api = new PanelAPI(PanelServiceGrpc.newBlockingStub(channel));
+        asyncApi = new PanelAPIAsync(PanelServiceGrpc.newFutureStub(channel), asyncExecutor);
+        asyncStub = PanelServiceGrpc.newStub(channel);
 
         io.grpc.Server server = ServerBuilder.forPort(port)
                 .addService(this)
@@ -272,6 +298,14 @@ public abstract class BirdactylPlugin extends PluginServiceGrpc.PluginServiceImp
                 resp.setAction(io.birdactyl.sdk.proto.MixinResponse.Action.ERROR);
                 resp.setError(result.getError() != null ? result.getError() : "");
                 break;
+        }
+
+        for (MixinResult.Notification n : result.getNotifications()) {
+            resp.addNotifications(io.birdactyl.sdk.proto.Notification.newBuilder()
+                    .setTitle(n.getTitle())
+                    .setMessage(n.getMessage())
+                    .setType(n.getType())
+                    .build());
         }
 
         response.onNext(resp.build());

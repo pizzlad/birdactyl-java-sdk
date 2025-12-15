@@ -17,6 +17,23 @@ public class Response {
         this.body = body;
     }
 
+    public static Response ok(byte[] body) {
+        return new Response(200, new HashMap<>(), body);
+    }
+
+    public static Response ok(String body) {
+        return new Response(200, new HashMap<>(), body.getBytes(StandardCharsets.UTF_8));
+    }
+
+    public Response header(String name, String value) {
+        this.headers.put(name, value);
+        return this;
+    }
+
+    public Response status(int status) {
+        return new Response(status, this.headers, this.body);
+    }
+
     public static Response json(Object data) {
         Map<String, Object> wrapper = new HashMap<>();
         wrapper.put("success", true);

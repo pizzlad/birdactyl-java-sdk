@@ -75,6 +75,33 @@ public class PanelAPI {
         stub.sendCommand(SendCommandRequest.newBuilder().setServerId(serverId).setCommand(command).build());
     }
 
+    public byte[] getFullLog(String serverId) {
+        return stub.getFullLog(IDRequest.newBuilder().setId(serverId).build()).getContent().toByteArray();
+    }
+
+    public List<LogMatch> searchLogs(String serverId, String pattern, boolean regex, int limit) {
+        SearchLogsResponse resp = stub.searchLogs(SearchLogsRequest.newBuilder()
+                .setServerId(serverId).setPattern(pattern).setRegex(regex).setLimit(limit).build());
+        List<LogMatch> out = new ArrayList<>();
+        for (io.birdactyl.sdk.proto.LogMatch m : resp.getMatchesList()) {
+            out.add(new LogMatch(m.getLine(), m.getLineNumber(), m.getTimestamp()));
+        }
+        return out;
+    }
+
+    public List<LogFile> listLogFiles(String serverId) {
+        LogFilesResponse resp = stub.listLogFiles(IDRequest.newBuilder().setId(serverId).build());
+        List<LogFile> out = new ArrayList<>();
+        for (LogFileInfo f : resp.getFilesList()) {
+            out.add(new LogFile(f.getName(), f.getSize(), f.getModified()));
+        }
+        return out;
+    }
+
+    public byte[] readLogFile(String serverId, String filename) {
+        return stub.readLogFile(ReadLogFileRequest.newBuilder().setServerId(serverId).setFilename(filename).build()).getContent().toByteArray();
+    }
+
     public ServerStats getServerStats(String serverId) {
         io.birdactyl.sdk.proto.ServerStats s = stub.getServerStats(IDRequest.newBuilder().setId(serverId).build());
         return new ServerStats(s.getMemoryBytes(), s.getMemoryLimit(), s.getCpuPercent(), s.getDiskBytes(), s.getNetworkRx(), s.getNetworkTx(), s.getState());
@@ -569,6 +596,25 @@ public class PanelAPI {
         ServerStats(long memoryBytes, long memoryLimit, double cpuPercent, long diskBytes, long networkRx, long networkTx, String state) {
             this.memoryBytes = memoryBytes; this.memoryLimit = memoryLimit; this.cpuPercent = cpuPercent;
             this.diskBytes = diskBytes; this.networkRx = networkRx; this.networkTx = networkTx; this.state = state;
+        }
+    }
+
+    public static class LogMatch {
+        public final String line;
+        public final int lineNumber;
+        public final long timestamp;
+
+        LogMatch(String line, int lineNumber, long timestamp) {
+            this.line = line; this.lineNumber = lineNumber; this.timestamp = timestamp;
+        }
+    }
+
+    public static class LogFile {
+        public final String name, modified;
+        public final long size;
+
+        LogFile(String name, long size, String modified) {
+            this.name = name; this.size = size; this.modified = modified;
         }
     }
 }

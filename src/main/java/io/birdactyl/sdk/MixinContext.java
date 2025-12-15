@@ -1,6 +1,8 @@
 package io.birdactyl.sdk;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class MixinContext {
@@ -9,6 +11,7 @@ public class MixinContext {
     private final Map<String, Object> input;
     private final Map<String, Object> chainData;
     private Map<String, Object> modifiedInput;
+    private List<MixinResult.Notification> notifications;
 
     public MixinContext(String target, String requestId, Map<String, Object> input, Map<String, Object> chainData) {
         this.target = target;
@@ -47,8 +50,27 @@ public class MixinContext {
         modifiedInput.put(key, value);
     }
 
+    public void notify(String title, String message, String type) {
+        if (notifications == null) {
+            notifications = new ArrayList<>();
+        }
+        notifications.add(new MixinResult.Notification(title, message, type));
+    }
+
+    public void notifyError(String title, String message) {
+        notify(title, message, "error");
+    }
+
+    public void notifySuccess(String title, String message) {
+        notify(title, message, "success");
+    }
+
+    public void notifyInfo(String title, String message) {
+        notify(title, message, "info");
+    }
+
     public MixinResult next() {
-        return new MixinResult(MixinResult.Action.NEXT, null, null, modifiedInput);
+        return new MixinResult(MixinResult.Action.NEXT, null, null, modifiedInput, notifications);
     }
 
     public MixinResult returnValue(Object data) {
@@ -58,10 +80,10 @@ public class MixinContext {
         } else {
             output.put("result", data);
         }
-        return new MixinResult(MixinResult.Action.RETURN, output, null, null);
+        return new MixinResult(MixinResult.Action.RETURN, output, null, null, notifications);
     }
 
     public MixinResult error(String message) {
-        return new MixinResult(MixinResult.Action.ERROR, null, message, null);
+        return new MixinResult(MixinResult.Action.ERROR, null, message, null, notifications);
     }
 }
